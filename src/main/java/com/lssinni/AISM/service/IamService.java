@@ -4,6 +4,16 @@ import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.List;
+
+import com.lssinni.AISM.domain.IamUser;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.core.SdkBytes;
@@ -25,7 +35,7 @@ public class IamService {
     }
 
     // Credential Report 생성 메서드
-    public String generateCredentialReport() throws InterruptedException {
+    public List<IamUser> generateCredentialReport() throws InterruptedException {
         try {
             // Credential Report 생성 요청
             GenerateCredentialReportRequest generateRequest = GenerateCredentialReportRequest.builder().build();
@@ -53,8 +63,13 @@ public class IamService {
             // SdkBytes에서 byte[] 배열로 변환
             byte[] decodedBytes = reportContent.asByteArray();
 
+            // byte에서 string으로 변환
+            String reportString = convertByteToString(decodedBytes);
+
             // CSV 데이터 읽기
-            return parseCsv(decodedBytes);  // 디코딩된 CSV 데이터를 파싱하여 반환
+            List<IamUser> iamUsers = parseCsv(reportString);    // 디코딩된 CSV 데이터를 파싱하여 반환
+
+            return iamUsers;
 
         } catch (SdkException e) {
             e.printStackTrace();
@@ -62,19 +77,72 @@ public class IamService {
         }
     }
 
-    // CSV 데이터를 파싱하여 출력
-    private String parseCsv(byte[] decodedBytes) {
+    /**
+     * convertByteToString
+     * - byte 배열을 문자열(String)으로 변환하여 반환
+     * @param decodedBytes - byte 배열
+     * @return string
+     */
+    protected String convertByteToString(byte[] decodedBytes) {
         StringBuilder sb = new StringBuilder();
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(new ByteArrayInputStream(decodedBytes)))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                sb.append(line).append("\n");
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-            return "CSV 파일을 읽는 중 오류 발생";
+
+        for (byte b : decodedBytes) {
+            sb.append((char) b);
         }
-        System.out.println(sb.toString());
+
         return sb.toString();
+    }
+
+    /**
+     * parseCsv
+     * - csv내용이 포함된 string을 IamUser 객체 리스트로 반환
+     * @param reportString
+     * @return List<IamUser>
+     */
+    protected List<IamUser> parseCsv(String reportString) {
+        List<IamUser> iamUsers = new ArrayList<>();
+
+        String[] reportLines = reportString.split("\n");
+
+        for (int i=1; i<reportLines.length; i++) {
+            iamUsers.add(convertStringToObject(reportLines[i]));
+        }
+
+        return iamUsers;
+    }
+
+    /**
+     * convertStringToObject
+     * String 안에 ","로 나누어진 각 항목을 iamUser 멤버변수에 입력 후 iamUser 인스턴스 생성
+     * @param iamUserInfo
+     * @return IamUser
+     */
+    private IamUser convertStringToObject(String iamUserInfo) {
+        String[] info = iamUserInfo.split(",");
+
+        return IamUser.builder()
+                .user(info[0])
+                .arn(info[1])
+                .user_creation_time(info[2])
+                .password_enabled(Boolean.parseBoolean(info[3]))
+                .password_last_used(info[4])
+                .password_last_changed(info[5])
+                .password_next_rotation(info[6])
+                .mfa_active(Boolean.parseBoolean(info[7]))
+                .access_key_1_active(Boolean.parseBoolean(info[8]))
+                .access_key_1_last_rotated(info[9])
+                .access_key_1_last_used_date(info[10])
+                .access_key_1_last_used_region(info[11])
+                .access_key_1_last_used_service(info[12])
+                .access_key_2_active(Boolean.parseBoolean(info[13]))
+                .access_key_2_last_rotated(info[14])
+                .access_key_2_last_used_date(info[15])
+                .access_key_2_last_used_region(info[16])
+                .access_key_2_last_used_service(info[17])
+                .cert_1_active(Boolean.parseBoolean(info[18]))
+                .cert_1_last_rotated(info[19])
+                .cert_2_active(Boolean.parseBoolean(info[20]))
+                .cert_2_last_rotated(info[21])
+                .build();
     }
 }
