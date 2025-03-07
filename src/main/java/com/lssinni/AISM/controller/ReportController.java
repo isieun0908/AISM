@@ -11,22 +11,19 @@ import java.util.List;
 @RestController
 public class ReportController {
 
-    private final ReportService iamService;
+    private final ReportService reportService;
 
     @Autowired
-    public ReportController(ReportService iamService) {
-        this.iamService = iamService;
+    public ReportController(ReportService reportService) {
+        this.reportService = reportService;
     }
 
-    // HTTP GET 요청으로 보고서를 생성하고 반환하는 엔드포인트
     @GetMapping("/generate")
-    public List<IamUser> generateCredentialReport() {
+    public List<IamUser> getReport() {
         try {
-            // IAMService를 통해 Credential Report 생성
-            return iamService.generateCredentialReport();
+            return reportService.generateCredentialReport();
         } catch (InterruptedException e) {
-            //return "Credential Report 생성 중 오류가 발생했습니다: " + e.getMessage();
+            throw new RuntimeException("report 생성에 실패했습니다.");
         }
-        return null;
     }
 }
